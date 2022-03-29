@@ -1,0 +1,6 @@
+click==8.0.4
+jieba==0.42.1
+pyglossary==4.5.0
+PyNLPIR==0.6.0
+tinydb~=4.7.0
+dominate~=2.6.0
