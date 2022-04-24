@@ -4,6 +4,7 @@ import argparse
 import csv
 from pyglossary.glossary import Glossary
 from dominate.tags import *
+from Config import *
 
 model = {'hanzi': None, 'keyword': None,
          'zhuyin': None, 'pinyin': 'rén',
@@ -15,8 +16,62 @@ model = {'hanzi': None, 'keyword': None,
          'rth_index': None,
          'frequency_index': None, 'learn_order': None, 'network_level': None
          }
+fields = ['hanzi',
+          'keyword',
+          'zhuyin',
+          'pinyin',
+          'decomposition',
+          'definition',
+          'example',
+          'example_zhuyin',
+          'example_pinyin',
+          'simplified',
+          'rth_index',
+          'frequency_index',
+          'learn_order',
+          'network_level'
+          ]
 
 
+def rebuild_gloss(db):
+    Glossary.init()
+    all_of_it = db.all()
+    make_json_glossary(all_of_it)
+    make_stardict_glossary(all_of_it)
+
+
+def show_hanzi(args):
+    with TinyDB('hanzi.json') as db:
+        q = Query()
+        if not db.contains(q.hanzi == args.hanzi):
+            print("not found")
+        result = db.search(q.hanzi == args.hanzi)[0]
+        print(star_def_str(result))
+        return result
+
+
+def update_glossary(args=None):
+    print("updating all decomps")
+    # update_decompstr()
+    with TinyDB('hanzi.json') as db:
+        # make_csv_from_db(db)
+        rebuild_gloss(db)
+
+
+def update_hanzi(args):
+    with TinyDB('hanzi.json') as db:
+        Q = Query()
+        hanzi_maybe = db.get({'hanzi': args.hanzi}, Q.hanzi == args.hanzi)
+        if hanzi_maybe:
+            hanzi_maybe.update({'keyword': args.keyword})
+            print(hanzi_maybe)
+        else:
+            print("not found will insert")
+            new_guy = model.copy()
+            new_guy['keyword'] = args.keyword
+            new_guy['hanzi'] = args.hanzi
+            #TODO: auto gen info about character
+            print(new_guy)
 def reset_db():
     new_hanzi = csv_with_header_to_hanzi_list('../dataSources/ChineseCharacterMap.csv')
     old_hanzi = csv_to_hanzi_list()
@@ -26,37 +81,21 @@ def reset_db():
             old_hanzi[newh].__dict__ = merged
         else:
             old_hanzi.__setitem__(newh, newh.hanzi)
-
     for h in old_hanzi.values():
         h.__dict__ = model | h.__dict__
-    # with open('../out/hanzidb.csv', 'w') as f:
-    #     writer = csv.DictWriter(f, fieldnames=Hanzi.Field.all)
-    #     writer.writeheader()
-    #     for h in old_hanzi.values():
-    #         writer.writerow(h.__dict__)
+
+    def build_csv():
+        with open('../out/hanzidb.csv', 'w') as f:
+            writer = csv.DictWriter(f, fieldnames=Hanzi.Field.all)
+            writer.writeheader()
+            for h in old_hanzi.values():
+                writer.writerow(h.__dict__)
 
     assert all([model.keys() == h.__dict__.keys() for h in old_hanzi])
     with TinyDB('hanzi.json') as db:
         db.truncate()
         for k, v in old_hanzi.items():
             db.insert(v.__dict__)
-
-
-# SECTION: GENERATOR RELATED
-class GeneratorFormats:
-    json = "Json"
-    stardict = "Stardict"
-
-
-class Config:
-    stardict_path_test_path = "../out/stardict/hanzi_key.ifo"
-    json_path_test_path = "../out/json/hanzi.json"
-    stardict_path = "/Users/f/Documents/StarDicts/stardict/hanzi_key.ifo"
-    json_path = "/Users/f/Library/Application Support/Anki2/yeqiu90210/collection.media/hanzi.json"
-    title = "Hanzi To Keyword"
-    author = "Ant King"
-    format_to_path = {GeneratorFormats.json: json_path, GeneratorFormats.stardict: stardict_path}
-    pickle_path = "../pickledData/data.pickle"
 
 
 def make_glossary_obj():
@@ -75,33 +114,79 @@ def make_glossary(db, head_words, write_format, text_format, def_str_maker):
     """
     glos = make_glossary_obj()
     for entry in db:
-        #print([entry[hw] for hw in head_words if entry[hw]])
-        glos.addEntryObj(glos.newEntry(word=[entry[hw] for hw in head_words if entry[hw]],
+        glos.addEntryObj(glos.newEntry(word=[entry[hw] for hw in head_words if hw in entry and entry[hw]],
                                        defi=def_str_maker(entry),
                                        defiFormat=text_format))
     glos.write(Config.format_to_path[write_format], write_format)
 
+
+def make_decomp_strs(d) -> (str):
+    # once = '\t'.join(filter(lambda s:  s != "No glyph available", d['once']))
+    once_out = ''
+    with TinyDB('hanzi.json') as db:
+        for prim in filter(lambda s: s != "No glyph available", d['once']):
+            once_out += prim
+            q = Query()
+            result = db.get(q.hanzi == prim)
+            if result:
+                # result = result
+                if result['keyword']:
+                    once_out += " [" + result['keyword'] + "]"
+        once_out += '\t'
+    once = once_out
+    radical = '\t'.join(d['radical'])
+    graph = '\t'.join(d['graphical'])
+    # if once == radical:
+    #     if radical == graph:
+    #         graph = ''
+    #     radical = ''
+    return (once, radical, graph)
+
+def update_decompstr():
+    with TinyDB('hanzi.json') as db:
+        q = Query()
+        for h in db.all():
+            s = make_decomp_strs(h['decomposition'])
+            print(s)
+            db.update({'decompstr': s}, q.hanzi == h['hanzi'])
+
 def json_def_str(e):
     d = div(id='hzinfo')
     with d:
-        for k,v in e.items():
+        for k, v in e.items():
+            if k == 'decompstr':
+                entry = div(id='decomposition')
+                with entry:
+                    for s in v[:2]:
+                        entry += div(s)
+                continue
             if v:
                 entry = div(id=k)
                 with entry:
                     entry += v
     return d.render()
 
+
 def make_json_glossary(db):
     make_glossary(db, ['hanzi'], GeneratorFormats.json, 'h', json_def_str)
 
+
+def make_csv_from_db(db):
+    with open('../out/hanzidb.csv', 'w') as f:
+        writer = csv.DictWriter(f, fields)
+        writer.writeheader()
+        for entry in db.all():
+            writer.writerow(entry)
+
+
 def star_def_str(e):
     me = e.copy()
-    for k,v in me.items():
+    for k, v in me.items():
         me[k] = v or ""
-    return '\n'.join( [me['keyword'],
+    return '\n'.join([me['keyword'],
                       "{} {}".format(me['zhuyin'], me['pinyin']),
                       me['definition'],
-                      me['decomposition'],
+                      ' // '.join(me['decompstr']),
                       "RTH {} , FREQ {}, NL {}".format(me['rth_index'],
                                                        me['frequency_index'],
                                                        me['network_level']),
@@ -109,9 +194,13 @@ def star_def_str(e):
                       me['example_zhuyin'],
                       me['example_pinyin']])
 
+
 def make_stardict_glossary(db):
-    make_glossary(db, ['hanzi', 'keyword', 'zhuyin', 'pinyin', 'rth_index'], GeneratorFormats.stardict, 'm', star_def_str)
-    #make_glossary(db, ['hanzi', 'keyword', 'zhuyin', 'pinyin', 'rth_index'], GeneratorFormats.stardict, 'h', json_def_str)
+    make_glossary(db, ['hanzi', 'keyword', 'zhuyin', 'pinyin', 'rth_index'], GeneratorFormats.stardict, 'm',
+                  star_def_str)
+
+    # make_glossary(db, ['hanzi', 'keyword', 'zhuyin', 'pinyin', 'rth_index'], GeneratorFormats.stardict, 'h', json_def_str)
+
 
 # SECTION: Command interface
 
