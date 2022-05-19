@@ -29,7 +29,8 @@ fields = ['hanzi',
           'rth_index',
           'frequency_index',
           'learn_order',
-          'network_level'
+          'network_level',
+          'decompstr'
           ]
 
 
@@ -52,18 +53,21 @@ def show_hanzi(args):
 
 def update_glossary(args=None):
     print("updating all decomps")
-    # update_decompstr()
+    x = input("update_decompe: ")
+    if x.lower() == 'y':
+        update_decompstr()
+
     with TinyDB('hanzi.json') as db:
-        # make_csv_from_db(db)
+        make_csv_from_db(db)
         rebuild_gloss(db)
 
 
 def update_hanzi(args):
     with TinyDB('hanzi.json') as db:
         Q = Query()
-        hanzi_maybe = db.get({'hanzi': args.hanzi}, Q.hanzi == args.hanzi)
+        hanzi_maybe = db.get(Q.hanzi == args.hanzi)
         if hanzi_maybe:
-            hanzi_maybe.update({'keyword': args.keyword})
+            hanzi_maybe.update({'keyword': args.keyword}, doc_ids=[hanzi_maybe.doc_id])
             print(hanzi_maybe)
         else:
             print("not found will insert")
@@ -153,6 +157,8 @@ def update_decompstr():
 def json_def_str(e):
     d = div(id='hzinfo')
     with d:
+        entry = div(id=Hanzi.Field.hanzi)
+
         for k, v in e.items():
             if k == 'decompstr':
                 entry = div(id='decomposition')
@@ -164,6 +170,7 @@ def json_def_str(e):
                 entry = div(id=k)
                 with entry:
                     entry += v
+
     return d.render()
 
 
@@ -171,12 +178,15 @@ def make_json_glossary(db):
     make_glossary(db, ['hanzi'], GeneratorFormats.json, 'h', json_def_str)
 
 
-def make_csv_from_db(db):
-    with open('../out/hanzidb.csv', 'w') as f:
-        writer = csv.DictWriter(f, fields)
+def make_csv_from_db(db, the_fields=fields):
+    with open(Config.csv_path, 'w') as f:
+        writer = csv.DictWriter(f, the_fields)
         writer.writeheader()
         for entry in db.all():
-            writer.writerow(entry)
+            final_entry = {}
+            for f in the_fields:
+                final_entry[f] = entry[f]
+            writer.writerow(final_entry)
 
 
 def star_def_str(e):
