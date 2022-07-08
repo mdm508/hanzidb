@@ -6,15 +6,21 @@ from pyglossary.glossary import Glossary
 from dominate.tags import *
 from Config import *
 
-model = {'hanzi': None, 'keyword': None,
-         'zhuyin': None, 'pinyin': 'rén',
-         'decomposition': '人',
+model = {'hanzi': None,
+         'keyword': None,
+         'zhuyin': None,
+         'pinyin': None,
+         'decomposition': None,
          'definition': None,
-         'example': None, 'example_zhuyin': None,
+         'example': None,
+         'example_zhuyin': None,
          'example_pinyin': None,
-         'simplified': '人',
+         'simplified': None,
          'rth_index': None,
-         'frequency_index': None, 'learn_order': None, 'network_level': None
+         'frequency_index': None,
+         'learn_order': None,
+         'network_level': None,
+         'decompstr': None
          }
 fields = ['hanzi',
           'keyword',
@@ -38,7 +44,7 @@ def rebuild_gloss(db):
     Glossary.init()
     all_of_it = db.all()
     make_json_glossary(all_of_it)
-    make_stardict_glossary(all_of_it)
+    # make_stardict_glossary(all_of_it)
 
 
 def show_hanzi(args):
@@ -46,17 +52,13 @@ def show_hanzi(args):
         q = Query()
         if not db.contains(q.hanzi == args.hanzi):
             print("not found")
+            return
         result = db.search(q.hanzi == args.hanzi)[0]
         print(star_def_str(result))
         return result
 
 
 def update_glossary(args=None):
-    print("updating all decomps")
-    x = input("update_decompe: ")
-    if x.lower() == 'y':
-        update_decompstr()
-
     with TinyDB('hanzi.json') as db:
         make_csv_from_db(db)
         rebuild_gloss(db)
@@ -67,8 +69,11 @@ def update_hanzi(args):
         Q = Query()
         hanzi_maybe = db.get(Q.hanzi == args.hanzi)
         if hanzi_maybe:
-            hanzi_maybe.update({'keyword': args.keyword}, doc_ids=[hanzi_maybe.doc_id])
+            db.update({'keyword': args.keyword}, doc_ids=[hanzi_maybe.doc_id])
+            print("*"*10)
             print(hanzi_maybe)
+            print("*"*10)
+            return hanzi_maybe
         else:
             print("not found will insert")
             new_guy = model.copy()
@@ -76,6 +81,7 @@ def update_hanzi(args):
             new_guy['hanzi'] = args.hanzi
             #TODO: auto gen info about character
             print(new_guy)
+            db.insert(new_guy)
 def reset_db():
     new_hanzi = csv_with_header_to_hanzi_list('../dataSources/ChineseCharacterMap.csv')
     old_hanzi = csv_to_hanzi_list()
@@ -160,7 +166,7 @@ def json_def_str(e):
         entry = div(id=Hanzi.Field.hanzi)
 
         for k, v in e.items():
-            if k == 'decompstr':
+            if k == 'decompstr' and v:
                 entry = div(id='decomposition')
                 with entry:
                     for s in v[:2]:
