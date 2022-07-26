@@ -60,7 +60,7 @@ def show_hanzi(args):
 
 def update_glossary(args=None):
     with TinyDB('hanzi.json') as db:
-        make_csv_from_db(db)
+        # make_csv_from_db(db)
         rebuild_gloss(db)
 
 
@@ -127,22 +127,25 @@ def make_glossary(db, head_words, write_format, text_format, def_str_maker):
         glos.addEntryObj(glos.newEntry(word=[entry[hw] for hw in head_words if hw in entry and entry[hw]],
                                        defi=def_str_maker(entry),
                                        defiFormat=text_format))
-    glos.write(Config.format_to_path[write_format], write_format)
+    glos.write(str(Config.format_to_path[write_format]), write_format)
 
 
 def make_decomp_strs(d) -> (str):
     # once = '\t'.join(filter(lambda s:  s != "No glyph available", d['once']))
     once_out = ''
     with TinyDB('hanzi.json') as db:
-        for prim in filter(lambda s: s != "No glyph available", d['once']):
-            once_out += prim
-            q = Query()
-            result = db.get(q.hanzi == prim)
-            if result:
-                # result = result
-                if result['keyword']:
-                    once_out += " [" + result['keyword'] + "]"
-        once_out += '\t'
+        try:
+            for prim in filter(lambda s: s != "No glyph available" and d, d['once']):
+                once_out += prim
+                q = Query()
+                result = db.get(q.hanzi == prim)
+                if result:
+                    # result = result
+                    if result['keyword']:
+                        once_out += " [" + result['keyword'] + "]"
+            once_out += '\t'
+        except:
+            print("problem")
     once = once_out
     radical = '\t'.join(d['radical'])
     graph = '\t'.join(d['graphical'])

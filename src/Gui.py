@@ -19,6 +19,7 @@ from not_main import *
 
 MENU_TEXT = "&File"
 MENU_ITEM_UPDATE= "&UPDATE"
+MENU_ITEM_REBUILD = "&REBUILD"
 
 class HanziObject:
     def __init__(self, keyword, hanzi):
@@ -40,7 +41,7 @@ class Worker(QObject):
     finished = pyqtSignal()
     progress = pyqtSignal(str)
 
-    def run(self):
+    def update_with_decomp(self):
         """Long-running task."""
         with TinyDB('hanzi.json') as db:
             q = Query()
@@ -51,6 +52,8 @@ class Worker(QObject):
         self.progress.emit("Updating Glossary")
         update_glossary()
         self.finished.emit()
+
+
 
 ###########################################################################################
 #
@@ -102,6 +105,11 @@ class HanziPreview(QMainWindow):
         update_action.triggered.connect(self.runLongTask)
         file_menu.addAction(update_action)
 
+        rebuild_action = QAction(MENU_ITEM_REBUILD, self.window())
+        rebuild_action.triggered.connect(update_glossary)
+        file_menu.addAction(rebuild_action)
+
+
     def reportProgress(self, progress_str):
         self.stepLabel.setText(progress_str)
     def runLongTask(self):
@@ -114,7 +122,7 @@ class HanziPreview(QMainWindow):
         # Step 4: Move worker to the thread
         self.worker.moveToThread(self.thread)
         # Step 5: Connect signals and slots
-        self.thread.started.connect(self.worker.run)
+        self.thread.started.connect(self.worker.update_with_decomp)
         self.worker.finished.connect(self.thread.quit)
         self.worker.finished.connect(self.worker.deleteLater)
         self.thread.finished.connect(self.thread.deleteLater)
