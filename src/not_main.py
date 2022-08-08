@@ -69,11 +69,13 @@ def update_hanzi(args):
         Q = Query()
         hanzi_maybe = db.get(Q.hanzi == args.hanzi)
         if hanzi_maybe:
-            db.update({'keyword': args.keyword}, doc_ids=[hanzi_maybe.doc_id])
+            updatedList = db.update({'keyword': args.keyword}, doc_ids=[hanzi_maybe.doc_id])
             print("*"*10)
             print(hanzi_maybe)
             print("*"*10)
-            return hanzi_maybe
+            assert len(updatedList) == 1
+
+            return updatedList[0]
         else:
             print("not found will insert")
             new_guy = model.copy()
@@ -81,7 +83,8 @@ def update_hanzi(args):
             new_guy['hanzi'] = args.hanzi
             #TODO: auto gen info about character
             print(new_guy)
-            db.insert(new_guy)
+            return db.insert(new_guy)
+
 def reset_db():
     new_hanzi = csv_with_header_to_hanzi_list('../dataSources/ChineseCharacterMap.csv')
     old_hanzi = csv_to_hanzi_list()
@@ -147,8 +150,8 @@ def make_decomp_strs(d) -> (str):
         except:
             print("problem")
     once = once_out
-    radical = '\t'.join(d['radical'])
-    graph = '\t'.join(d['graphical'])
+    radical = '\t'.join(d['radical']) if d and d['radical'] else ""
+    graph = '\t'.join(d['graphical']) if d and d['graphical'] else ""
     # if once == radical:
     #     if radical == graph:
     #         graph = ''
@@ -162,6 +165,33 @@ def update_decompstr():
             s = make_decomp_strs(h['decomposition'])
             print(s)
             db.update({'decompstr': s}, q.hanzi == h['hanzi'])
+
+def update_decompstrV2(hanziID):
+    with TinyDB('hanzi.json') as db:
+        def findEffectedHanzi():
+            """
+            return list of all ids who need to have there decomp str updated
+            """
+            passed = []
+            updatedHanzi = db.get(doc_id=hanziID)['hanzi']
+            print(updatedHanzi)
+            for e in db.all():
+                if e['decomposition']:
+                    if e['decomposition']['once']:
+                        if updatedHanzi in e['decomposition']['once']:
+                            passed.append(e)
+            return passed
+        e = findEffectedHanzi()
+        q = Query()
+        updated_hanzi = ""
+        toUpdate = findEffectedHanzi()
+        for h in toUpdate:
+            s = make_decomp_strs(h['decomposition'])
+            db.update({'decompstr': s}, q.hanzi == h['hanzi'])
+            updated_hanzi += updated_hanzi
+        return list(map(lambda h : h['hanzi'],toUpdate))
+
+
 
 def json_def_str(e):
     d = div(id='hzinfo')

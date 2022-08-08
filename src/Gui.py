@@ -40,7 +40,7 @@ def subscribe(action: QAction, subscribers):
 class Worker(QObject):
     finished = pyqtSignal()
     progress = pyqtSignal(str)
-
+    id = None  # this is id to update
     def update_with_decomp(self):
         """Long-running task."""
         with TinyDB('hanzi.json') as db:
@@ -52,6 +52,14 @@ class Worker(QObject):
         self.progress.emit("Updating Glossary")
         update_glossary()
         self.finished.emit()
+
+    def update_decomp_v2(self):
+        self.progress.emit("updating")
+        updatedList = update_decompstrV2(self.id)
+        self.progress.emit("updated " + str(len(updatedList)) + " " + ','.join(updatedList))
+        update_glossary()
+        self.finished.emit()
+
 
 
 
@@ -68,9 +76,10 @@ class HanziPreview(QMainWindow):
         self.setWindowTitle("Hanzi Preview")
         self.hanziInputBox = QLineEdit()
         self.keywordInputBox = QLineEdit()
-        self.textInputs = [self.hanziInputBox,
-                           self.keywordInputBox]
         self.submit = QPushButton()
+        self.textInputs = [self.hanziInputBox,
+                           self.keywordInputBox,
+                           self.submit]
         self.stepLabel = QLabel()
         # Instance Properties for UIComponents
 
@@ -81,48 +90,46 @@ class HanziPreview(QMainWindow):
         frame = QFrame()
         main_layout = QVBoxLayout()
 
-        for w in self.textInputs + [self.submit, self.stepLabel]:
+        for w in self.textInputs + [self.submit, self.stepLabel, self.stepLabel]:
             main_layout.addWidget(w)
         frame.setLayout(main_layout)
         self.setCentralWidget(frame)
-        self.stepLabel.hide()
         self.hanziInputBox.setMaxLength(1)
+        myFont = QFont()
+        myFont.setPointSize(12)
+        self.stepLabel.setFont(myFont)
+        self.stepLabel.setLineWidth(100)
+        self.stepLabel.setWordWrap(True)
         self.submit.setText("Submit")
         self.setTabOrder(self.keywordInputBox, self.submit)
-
-
         subscribe(self.submit.pressed, [self.submit_pressed])
-        # Setup menu bar and configure menu actions
-        menubar = self.window().menuBar()
-        menubar.setNativeMenuBar(False)
-        file_menu = menubar.addMenu(MENU_TEXT)
-        ## Add a pause menu item
-        # pause_action = QAction("&Pause", self.window())
-        # subscribe(pause_action.triggered, [self.timer.stop, self.update_start_stop_button_text])
-        # file_menu.addAction(pause_action)
-        # Add an exit menu item
-        update_action = QAction(MENU_ITEM_UPDATE, self.window())
-        update_action.triggered.connect(self.runLongTask)
-        file_menu.addAction(update_action)
 
-        rebuild_action = QAction(MENU_ITEM_REBUILD, self.window())
-        rebuild_action.triggered.connect(update_glossary)
-        file_menu.addAction(rebuild_action)
+        # Setup menu bar and configure menu actions
+        # menubar = self.window().menuBar()
+        # menubar.setNativeMenuBar(False)
+        # file_menu = menubar.addMenu(MENU_TEXT)
+        # update_action = QAction(MENU_ITEM_UPDATE, self.window())
+        # update_action.triggered.connect(self.runLongTask(self.worker.update_with_decomp))
+        # file_menu.addAction(update_action)
+
+        # rebuild_action = QAction(MENU_ITEM_REBUILD, self.window())
+        # rebuild_action.triggered.connect(update_glossary)
+
+        # file_menu.addAction(rebuild_action)
 
 
     def reportProgress(self, progress_str):
         self.stepLabel.setText(progress_str)
-    def runLongTask(self):
-        self.stepLabel.show()
+    def runLongTask(self, longFunction):
 
         # Step 2: Create a QThread object
         self.thread = QThread()
-        # Step 3: Create a worker object
-        self.worker = Worker()
+        # Step 3: Make Worker
+        #self.worker = Worker()
         # Step 4: Move worker to the thread
         self.worker.moveToThread(self.thread)
         # Step 5: Connect signals and slots
-        self.thread.started.connect(self.worker.update_with_decomp)
+        self.thread.started.connect(longFunction)
         self.worker.finished.connect(self.thread.quit)
         self.worker.finished.connect(self.worker.deleteLater)
         self.thread.finished.connect(self.thread.deleteLater)
@@ -130,18 +137,26 @@ class HanziPreview(QMainWindow):
         # Step 6: Start the thread
         self.thread.start()
 
-        # Final resets
+         # Final resets
         self.submit.setEnabled(False) #dibasle changes to db
 
         self.thread.finished.connect(
             lambda: self.submit.setEnabled(True)
         )
-        self.thread.finished.connect(self.stepLabel.hide)
+        #self.thread.finished.connect(self.stepLabel.hide)
 
     def submit_pressed(self):
         if self.is_ready():
-            update_hanzi(HanziObject(keyword=self.keywordInputBox.text(),
+            """
+            ok so we need to update worker id because runLongTask needs to take a worker function
+            that it will invorke later. so worker functions cant take parameters
+            so if your wondering why this code is trash thats why. i seriously need to refactor all this
+            
+            """
+            Worker.id = update_hanzi(HanziObject(keyword=self.keywordInputBox.text(),
                               hanzi=self.hanziInputBox.text()))
+            self.worker = Worker()
+            self.runLongTask(self.worker.update_decomp_v2)
             self.clear_fields()
         else:
             print("not ready")
