@@ -60,7 +60,7 @@ def show_hanzi(args):
 
 def update_glossary(args=None):
     with TinyDB('hanzi.json') as db:
-        # make_csv_from_db(db)
+        make_csv_from_db(db)
         rebuild_gloss(db)
 
 
@@ -127,9 +127,12 @@ def make_glossary(db, head_words, write_format, text_format, def_str_maker):
     """
     glos = make_glossary_obj()
     for entry in db:
-        glos.addEntryObj(glos.newEntry(word=[entry[hw] for hw in head_words if hw in entry and entry[hw]],
-                                       defi=def_str_maker(entry),
-                                       defiFormat=text_format))
+        try:
+            glos.addEntryObj(glos.newEntry(word=[entry[hw] for hw in head_words if hw in entry and entry[hw]],
+                                        defi=def_str_maker(entry),
+                                        defiFormat=text_format))
+        except:
+            print("cant right", entry)
     glos.write(str(Config.format_to_path[write_format]), write_format)
 
 
@@ -218,14 +221,17 @@ def make_json_glossary(db):
 
 
 def make_csv_from_db(db, the_fields=fields):
-    with open(Config.csv_path, 'w') as f:
+    with open(Config.csv_path, 'w', encoding='utf-8') as f:
         writer = csv.DictWriter(f, the_fields)
         writer.writeheader()
         for entry in db.all():
             final_entry = {}
             for f in the_fields:
                 final_entry[f] = entry[f]
-            writer.writerow(final_entry)
+            try:
+                writer.writerow(final_entry)
+            except:
+                print("could not write", entry)
 
 
 def star_def_str(e):

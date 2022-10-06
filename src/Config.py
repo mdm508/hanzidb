@@ -11,7 +11,8 @@ class Config:
 
     base_path = Path("/Volumes/GoogleDrive-100763791435668895390/My Drive/Dicts")
     stardict_path = base_path.joinpath("/hanzi_star_dict/hanzi_key.ifo")
-    csv_path = base_path.joinpath("/ordinary_csv.txt")
+    #csv_path = base_path.joinpath("/ordinary_csv.txt")
+    csv_path = "../output/db.csv"
     # Put your anki path to collection.media folder
     if platform.system() == "Windows":
         json_path = Path("C:/Users/metta/AppData/Roaming/Anki2/Ye qiu/collection.media/_hzdb.json")
