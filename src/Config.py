@@ -14,10 +14,11 @@ class Config:
     #csv_path = base_path.joinpath("/ordinary_csv.txt")
     csv_path = "../output/db.csv"
     # Put your anki path to collection.media folder
+    MAC_BASE = "/Users/yuhsinho/"
     if platform.system() == "Windows":
         json_path = Path("C:/Users/metta/AppData/Roaming/Anki2/Ye qiu/collection.media/_hzdb.json")
     else:
-        json_path = Path("/Users/f/Library/Application Support/Anki2/yeqiu90210/collection.media/_hzdb.json")
+        json_path = Path("/Users/yuhsinho/Library/Application Support/Anki2/matt/collection.media/_hzdb.json")
     title = "Hanzi To Keyword"
     author = "Ant King"
 
