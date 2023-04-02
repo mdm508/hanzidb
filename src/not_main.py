@@ -43,6 +43,10 @@ def make_mdbg_format():
     """
     format must be one line containing
     trad [han3] a/b/c
+
+    note to self. we dont have simplified for some enttrys. and if you have gaps\
+    it fucks it up. so i chose to just use traditional as a placeholder for simplified and
+    now it works great
     """
     with open('../output/words.txt', 'w', encoding='utf-8') as f:
         with TinyDB('hanzi.json') as db:
@@ -50,20 +54,22 @@ def make_mdbg_format():
             for entry in db:
                 try:
                     hanzi = entry['hanzi']
-                    zhuyin = entry['zhuyin']
+                    simp = hanzi
+                    pinyin = entry['pinyin']
                     meaning = entry['definition']
-                    key = entry['keyword']
+                    key = entry['keyword'].upper()
                     index = entry['rth_index']
                     if not (key and index):
                         continue
-                    definition = "({}) {};{}".format(key, meaning, index)
-                    s = "{} [{}] {}\n".format(hanzi, zhuyin, definition)
-                    f.write(s)
+                    definition = "/{};{};{}/".format(key, meaning, index)
+
+                    mystr = "{}\t{}\t[{}]\t{}\n".format(hanzi, simp, pinyin, definition)
+                    f.write(mystr)
                     good += 1
                 except:
                     print("failed to write", entry)
     print("wrote", good)
-
+make_mdbg_format()
 
 def rebuild_gloss(db):
     Glossary.init()
