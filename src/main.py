@@ -30,9 +30,18 @@ def command_line_main():
     args.func(args)
 
 
-
-
-
-if __name__ == '__main__':
-    #command_line_main()
-    update_decompstrV2(10)
+# print(e)
+#
+# if __name__ == '__main__':
+#     #command_line_main()
+#     #update_decompstrV2(10)
+#     db = TinyDB('hanzi.json')
+#     # with open("../dataSources/hanzi.csv", 'r', encoding='utf-8') as f:
+#     #     reader = csv.reader(f)
+#     #     for row in reader:
+#     #         hanzi = row[0]
+#     #         q = Query()
+#     #         keyword = row[1]
+#     #         db.update({'primitive': None}, q.hanzi == hanzi)
+#     for e in db:
+#         e.update({'primitive': None})

@@ -20,7 +20,7 @@ model = {'hanzi': None,
          'frequency_index': None,
          'learn_order': None,
          'network_level': None,
-         'decompstr': None
+         'decompstr': None,
          }
 fields = ['hanzi',
           'keyword',
@@ -36,8 +36,33 @@ fields = ['hanzi',
           'frequency_index',
           'learn_order',
           'network_level',
-          'decompstr'
+          'decompstr',
           ]
+
+def make_mdbg_format():
+    """
+    format must be one line containing
+    trad [han3] a/b/c
+    """
+    with open('../output/words.txt', 'w', encoding='utf-8') as f:
+        with TinyDB('hanzi.json') as db:
+            good = 0
+            for entry in db:
+                try:
+                    hanzi = entry['hanzi']
+                    zhuyin = entry['zhuyin']
+                    meaning = entry['definition']
+                    key = entry['keyword']
+                    index = entry['rth_index']
+                    if not (key and index):
+                        continue
+                    definition = "({}) {};{}".format(key, meaning, index)
+                    s = "{} [{}] {}\n".format(hanzi, zhuyin, definition)
+                    f.write(s)
+                    good += 1
+                except:
+                    print("failed to write", entry)
+    print("wrote", good)
 
 
 def rebuild_gloss(db):
@@ -116,6 +141,8 @@ def make_glossary_obj():
     glos.setInfo("title", Config.title)
     glos.setInfo("author", Config.author)
     return glos
+
+
 
 
 def make_glossary(db, head_words, write_format, text_format, def_str_maker):
